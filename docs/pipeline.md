@@ -1,6 +1,6 @@
 # Pipeline: Klasifikasi Skin Lesion (ISIC 2018 Task 3)
 
-Dokumentasi alur **versi 1** dari notebook `isic2018_resnet_pipeline.ipynb`.
+Dokumentasi alur terkini (v1.5) dari notebook `kaggle/isic2018_resnet_pipeline.ipynb`.
 Notebook dibangun dari `src/isic2018_resnet_pipeline.py` melalui generator
 (`build_resnet_notebook.py`); **seluruh perubahan alur dilakukan di generator lalu
 notebook diregenerasi ulang**.
@@ -12,24 +12,24 @@ Rujukan tugas: EMED (7 kelas diagnosis) pada ISIC 2018 Task 3
 
 ```
 skin-lesion-classification/
-├── isic2018_resnet_pipeline.ipynb   # notebook utama (output akhir)
-├── src/isic2018_resnet_pipeline.py  # script sumber pipeline
-├── docs/pipeline.md                 # dokumen ini
+├── kaggle/isic2018_resnet_pipeline.ipynb  # notebook utama (output akhir)
+├── src/isic2018_resnet_pipeline.py        # script sumber pipeline
+├── docs/pipeline.md                       # dokumen ini
 ├── README.md
 ├── CHANGELOG.md
-├── dataset/                         # dataset lokal (folder standar ISIC 2018 Task 3)
-├── output/                          # hasil run (model, JSON, CSV, PNG)
-└── kaggle/                          # salinan notebook untuk upload Kaggle
+├── dataset/                               # dataset lokal (folder standar ISIC 2018 Task 3)
+└── output/                                # hasil run (model, JSON, CSV, PNG)
 ```
 
 ## Alur (1–19, mengikuti section di notebook)
 
 1. **Configuration (CONFIG)** — satu tempat untuk semua hyperparameter: path dataset,
    path ground truth, output, kelas & ukuran gambar, split ratio, balancing, normalisasi
-   ImageNet, training (batch/lr/dropout/optimizer/epoch), arsitektur model, dan **nilai
-   eksperimen** (7 jenis, nilai tunggal diubah manual). Path ground truth dicari otomatis
-   (folder `*_GroundTruth`), dan `data_dir` autodetect `/kaggle/input` bila variabel `isle_*`
-   tidak ditemukan. `OUTPUT_DIR` dibuat saat config dimuat.
+   ImageNet, training (batch/lr/dropout/optimizer/epoch), arsitektur model (depth,
+   residual block, channel, classifier hidden dim), dan **bobot loss** (`loss_weight`
+   manual per kelas / `loss_weight_mode` otomatis inverse-frequency). Path ground truth
+   dicari otomatis (folder `*_GroundTruth`), dan `data_dir` autodetect `/kaggle/input`.
+   `OUTPUT_DIR` dibuat saat config dimuat.
 2. **Imports** — torch, torchvision, pandas, matplotlib/seaborn, sklearn.
 3. **Muat Ground Truth** — training (10015), test (1512), validation resmi (193) dibaca
    dari CSV one-hot lalu dipetakan ke label tunggal (`dx`).
@@ -49,8 +49,9 @@ skin-lesion-classification/
     hanya untuk kombinasi standar** (18/34=basic, 50/101=bottleneck, base=64); kombinasi
     lain dibangun dari nol (`ResNetCustom`). Label arsitektur (`arch_label`) + jumlah
     parameter dicetak.
-11. **Fungsi Training & Evaluasi per Epoch** — `train_one_epoch`, `evaluate`; menyimpan
-    metrik loss/accuracy tiap epoch.
+11. **Fungsi Training & Evaluasi per Epoch** — `train_one_epoch`, `evaluate`, serta
+    `build_criterion()` yang membuat CrossEntropyLoss dengan bobot per kelas (manual atau
+    otomatis inverse-frequency); menyimpan metrik loss/accuracy tiap epoch.
 12. **Fungsi Utama Training (`run_training`)** — menerima seluruh hyperparameter sebagai
     argumen (default dari `CONFIG`). Mengembalikan `(model, history, run_record)` dan
     menulis:
@@ -60,12 +61,17 @@ skin-lesion-classification/
       seluruh hyperparameter, arsitektur, snapshot `CONFIG`, history, dan metrik akhir;
     - baris ringkas di **`runs_log.csv`** (re-run menggantikan baris yang sama).
 13. **Plot Kurva** — loss & accuracy training vs validation (PNG + tampilan).
-14. **Jalankan Training Baseline** — `run_training` dengan nilai default `CONFIG`.
-15. **Eksperimen Hyperparameter** — 7 cell independen, masing-masing nilai tunggal:
-    a. Learning Rate, b. Batch Size, c. Dropout, d. ResNet Depth, e. Residual Blocks,
-    f. Classifier Hidden Dim, g. Base Channels. Setiap hasil ditambahkan ke `exp_results`
-    (termasuk Best Val Acc) dan juga tercatat sebagai run penuh.
-16. **Ringkasan Hasil Eksperimen** — dataframe + simpan `hyperparameter_summary.csv`.
+14. **Satu Cell Training (baseline / eksperimen)** — SATU-SATUNYA cell yang menjalankan
+    `run_training`. Baseline memakai default `CONFIG`. Untuk **eksperimen**: ubah nilai
+    hyperparameter langsung di `CONFIG` (Section 1), ganti **`run_name` hardcoded** pada
+    pemanggilan (mis. `run_name="lr_1e-3"`), lalu jalankan ulang cell ini — **1 eksperimen =
+    1 model = 1 run** (bukan ablation).
+15. **Eksperimen Hyperparameter (1 model per eksperimen)** — panduan nilai yang bisa dicoba
+    (LR, batch size, dropout, optimizer/weight decay, depth, residual block, base channels,
+    classifier hidden dim) + contoh `run_name`. Tidak ada cell eksperimen terpisah; cukup
+    cell Section 14. Cell pembantu mencetak konfigurasi efektif yang akan dipakai.
+16. **Ringkasan Hasil Eksperimen** — tabel dibaca dari `runs_log.csv` (satu baris per run;
+    re-run dengan `run_name` sama menggantikan baris lama).
 17. **Fungsi Evaluasi Lengkap** — helper `evaluate_and_report` yang dipakai bersama:
     metrik & classification report (CSV), confusion matrix (PNG), prediksi per-gambar
     (CSV), dan **sampel salah klasifikasi** (CSV `misclassified_<tag>.csv` + grid PNG).
@@ -80,9 +86,8 @@ skin-lesion-classification/
 |---|---|
 | `model_<run>_best.pt` | checkpoint state_dict terbaik per run |
 | `run_<run>.json` | skema training-test-eval + seluruh konfigurasi + history + metrik |
-| `runs_log.csv` | ringkasan semua run (1 baris/run) |
-| `history_*`, `training_history_*.png` | kurva loss/accuracy |
-| `hyperparameter_summary.csv` | ringkasan eksperimen Section 15 |
+| `runs_log.csv` | ringkasan semua run (1 baris/run; ringkasan eksperimen) |
+| `history_baseline.png` (+ kurva training) | plot loss/accuracy |
 | `test_metrics.csv`, `test_classification_report.csv`, `test_predictions.csv` | evaluasi test |
 | `confusion_matrix_test.png`, `misclassified_test.csv`, `misclassified_test.png` | evaluasi test |
 | `validation_metrics.csv`, `validation_classification_report.csv`, `validation_predictions.csv` | evaluasi val resmi |
@@ -91,8 +96,9 @@ skin-lesion-classification/
 ## Cara Pakai
 
 - **Lokal**: `python src/isic2018_resnet_pipeline.py` (butuh torch di lingkungan).
-- **Notebook**: jalankan cell berurutan 1–19 di atas. Ubah nilai CONFIG di Section 1,
-  lalu jalankan ulang cell eksperimen terkait (Section 15).
+- **Notebook**: jalankan cell berurutan 1–19 di atas. Untuk eksperimen: ubah nilai CONFIG
+  di Section 1 + ganti `run_name` hardcoded di Section 14, lalu jalankan ulang cell
+  Section 14 (1 eksperimen = 1 model).
 - **Kaggle**: upload `kaggle/isic2018_resnet_pipeline.ipynb` + dataset dengan folder
   standar ISIC 2018 Task 3. Path terdeteksi otomatis.
 

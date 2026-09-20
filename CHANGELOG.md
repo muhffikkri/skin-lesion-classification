@@ -2,6 +2,26 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v1.5] - 2026-09-21
+
+### Changed
+- **Eksperimen = 1 model, bukan ablation**: hapus 7 cell eksperimen terpisah (15a–15g) dan
+  `exp_results`/`hyperparameter_summary.csv`. Kini hanya ada satu cell training (Section 14);
+  eksperimen dilakukan dengan mengubah nilai hyperparameter **langsung di `CONFIG`** (Section 1)
+  lalu mengganti **`run_name` hardcoded** pada pemanggilan `run_training`, dan menjalankan
+  ulang cell yang sama. Setiap eksperimen = 1 run = 1 model (`model_<run_name>_best.pt`).
+- Hapus key `*_experiment` dan `experiment_epochs` dari `CONFIG`.
+- Section 15 jadi panduan eksperimen + print konfigurasi efektif; Section 16 membaca
+  ringkasan dari `runs_log.csv`.
+- Generator notebook kini menulis langsung ke `kaggle/isic2018_resnet_pipeline.ipynb`.
+
+### Added
+- **Bobot loss otomatis relatif**: key `loss_weight` (manual per kelas) dan
+  `loss_weight_mode` (`'none'` / `'inverse_frequency'`). Mode inverse_frequency menghitung
+  bobot `total/(n_kelas×frekuensi)` dari distribusi **training asli** (sebelum balancing);
+  `build_criterion()` dipakai konsisten untuk training & semua evaluasi. Bobot efektif
+  tercatat di `run_<nama>.json` (`loss.loss_weight_applied`).
+
 ## [v1.4] - 2026-09-21
 
 ### Added
