@@ -2,6 +2,21 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+- **Ringkasan arsitektur model ala Keras** (Section 10.1): `model_summary` menampilkan tabel
+  per layer — nama, tipe, output shape (dari satu forward pass dummy), jumlah parameter, dan
+  parameter trainable. Memakai `torchinfo` bila tersedia, fallback ke helper kustom tanpa
+  dependency; tabel disimpan ke `output/arch_summary_<experiment_name>.csv`.
+
+### Changed
+- Nama eksperimen kini dikontrol melalui CONFIG (`experiment_name`, Section 1) — dipakai
+  untuk seluruh output run (`model_<nama>_best.pt`, `run_<nama>.json`, file plot,
+  `runs_log.csv`). Tidak ada lagi `run_name` hardcoded di cell training; eksperimen cukup
+  mengubah `experiment_name` + nilai hyperparameter di CONFIG lalu menjalankan ulang
+  Section 14. Variabel hasil training diubah `baseline_*` → `trained_*`.
+
 ## [v1.5] - 2026-09-21
 
 ### Changed

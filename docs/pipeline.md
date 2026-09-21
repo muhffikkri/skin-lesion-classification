@@ -49,6 +49,10 @@ skin-lesion-classification/
     hanya untuk kombinasi standar** (18/34=basic, 50/101=bottleneck, base=64); kombinasi
     lain dibangun dari nol (`ResNetCustom`). Label arsitektur (`arch_label`) + jumlah
     parameter dicetak.
+    - **10.1 Ringkasan Arsitektur (tabel per layer)** — `model_summary` menampilkan arsitektur
+      ala Keras: tabel per layer (nama, tipe, output shape dari satu forward pass dummy, jumlah
+      params, params trainable). Memakai **`torchinfo`** bila tersedia, fallback ke helper kustom
+      **tanpa dependency**. Tabel disimpan ke `output/arch_summary_<experiment_name>.csv`.
 11. **Fungsi Training & Evaluasi per Epoch** — `train_one_epoch`, `evaluate`, serta
     `build_criterion()` yang membuat CrossEntropyLoss dengan bobot per kelas (manual atau
     otomatis inverse-frequency); menyimpan metrik loss/accuracy tiap epoch.
@@ -63,15 +67,16 @@ skin-lesion-classification/
 13. **Plot Kurva** — loss & accuracy training vs validation (PNG + tampilan).
 14. **Satu Cell Training (baseline / eksperimen)** — SATU-SATUNYA cell yang menjalankan
     `run_training`. Baseline memakai default `CONFIG`. Untuk **eksperimen**: ubah nilai
-    hyperparameter langsung di `CONFIG` (Section 1), ganti **`run_name` hardcoded** pada
-    pemanggilan (mis. `run_name="lr_1e-3"`), lalu jalankan ulang cell ini — **1 eksperimen =
-    1 model = 1 run** (bukan ablation).
+    hyperparameter langsung di `CONFIG` (Section 1) dan ganti **`experiment_name`** di
+    CONFIG (nama run/output, mis. `"lr_1e-3"`), lalu jalankan ulang cell ini —
+    **1 eksperimen = 1 model = 1 run** (bukan ablation).
 15. **Eksperimen Hyperparameter (1 model per eksperimen)** — panduan nilai yang bisa dicoba
     (LR, batch size, dropout, optimizer/weight decay, depth, residual block, base channels,
-    classifier hidden dim) + contoh `run_name`. Tidak ada cell eksperimen terpisah; cukup
-    cell Section 14. Cell pembantu mencetak konfigurasi efektif yang akan dipakai.
+    classifier hidden dim) + contoh `experiment_name`. Tidak ada cell eksperimen terpisah;
+    cukup cell Section 14. Cell pembantu `current_run_cfg` mencetak konfigurasi efektif yang
+    akan dipakai (termasuk `experiment_name`).
 16. **Ringkasan Hasil Eksperimen** — tabel dibaca dari `runs_log.csv` (satu baris per run;
-    re-run dengan `run_name` sama menggantikan baris lama).
+    re-run dengan `experiment_name` sama menggantikan baris lama).
 17. **Fungsi Evaluasi Lengkap** — helper `evaluate_and_report` yang dipakai bersama:
     metrik & classification report (CSV), confusion matrix (PNG), prediksi per-gambar
     (CSV), dan **sampel salah klasifikasi** (CSV `misclassified_<tag>.csv` + grid PNG).

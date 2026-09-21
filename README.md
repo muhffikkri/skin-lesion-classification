@@ -16,10 +16,14 @@ Notebook utama: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet
   dipakai otomatis untuk kombinasi arsitektur standar; kombinasi lain dibangun dari nol.
 - **Pencatatan run lengkap** — setiap run menyimpan skema training-test-eval + seluruh
   hyperparameter + arsitektur ke `run_<nama>.json` dan baris ringkas di `runs_log.csv`.
-- **Eksperimen = 1 model (bukan ablation)** — hanya ada satu cell training (Section 14).
-  Untuk eksperimen, ubah nilai hyperparameter langsung di `CONFIG`, ganti `run_name`
-  (hardcoded), lalu jalankan ulang cell yang sama. Satu eksperimen menghasilkan satu
-  model/run; perbandingan dibaca dari `runs_log.csv`.
+- **Ringkasan arsitektur ala Keras** — `model_summary` menampilkan tabel per layer (nama, tipe,
+  output shape, kuota parameter, parameter trainable) — memakai `torchinfo` bila tersedia,
+  fallback ke helper kustom tanpa dependency; tabel tersimpan ke
+  `output/arch_summary_<experiment_name>.csv`.
+  - **Eksperimen = 1 model (bukan ablation)** — hanya ada satu cell training (Section 14).
+  Untuk eksperimen, ubah nilai hyperparameter langsung di `CONFIG`, ganti `experiment_name`
+  di CONFIG (nama run/output), lalu jalankan ulang cell yang sama. Satu eksperimen menghasilkan
+  satu model/run; perbandingan dibaca dari `runs_log.csv`.
 - **Bobot loss otomatis** — `loss_weight_mode: 'inverse_frequency'` menghitung bobot
   CrossEntropy relatif dari distribusi training asli (bisa dipakai bersamaan dengan
   balancing); atau isi `loss_weight` manual per kelas. Bobot efektif tercatat di
