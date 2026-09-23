@@ -102,10 +102,13 @@ skin-lesion-classification/
 
 - **Lokal**: `python src/isic2018_resnet_pipeline.py` (butuh torch di lingkungan).
 - **Notebook**: jalankan cell berurutan 1–19 di atas. Untuk eksperimen: ubah nilai CONFIG
-  di Section 1 + ganti `run_name` hardcoded di Section 14, lalu jalankan ulang cell
-  Section 14 (1 eksperimen = 1 model).
+  di Section 1 (termasuk `experiment_name`) lalu jalankan ulang cell Section 14
+  (1 eksperimen = 1 model).
 - **Kaggle**: upload `kaggle/isic2018_resnet_pipeline.ipynb` + dataset dengan folder
   standar ISIC 2018 Task 3. Path terdeteksi otomatis.
+- **EDA**: jalankan `kaggle/isic2018_eda.ipynb` terlebih dahulu bila ingin memahami data
+  sebelum training (distribusi kelas, `lesion_id`, resolusi, warna, duplikat, ukuran split).
+  Lihat [`docs/eda.md`](eda.md) untuk tujuan & penjelasan tiap tahapan.
 
 ## Catatan Evaluasi
 

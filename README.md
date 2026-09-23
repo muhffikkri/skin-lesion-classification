@@ -3,9 +3,11 @@
 Pipeline pelatihan & evaluasi model **ResNet** untuk klasifikasi **7 kelas diagnosis lesi
 kulit** (MEL, NV, BCC, AKIEC, BKL, DF, VASC) pada **ISIC 2018 Task 3** dengan PyTorch.
 
-Notebook utama: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet_pipeline.ipynb)
+Notebook: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet_pipeline.ipynb)
 (berbahasa Indonesia, siap dijalankan lokal maupun di Kaggle). Script sumber:
-`src/isic2018_resnet_pipeline.py`.
+`src/isic2018_resnet_pipeline.py`. Pendamping analisis data awal:
+[`kaggle/isic2018_eda.ipynb`](kaggle/isic2018_eda.ipynb) (7 tahap EDA, lihat
+[`docs/eda.md`](docs/eda.md)).
 
 ## Fitur Utama
 
@@ -25,8 +27,8 @@ Notebook utama: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet
   di CONFIG (nama run/output), lalu jalankan ulang cell yang sama. Satu eksperimen menghasilkan
   satu model/run; perbandingan dibaca dari `runs_log.csv`.
 - **Bobot loss otomatis** — `loss_weight_mode: 'inverse_frequency'` menghitung bobot
-  CrossEntropy relatif dari distribusi training asli (bisa dipakai bersamaan dengan
-  balancing); atau isi `loss_weight` manual per kelas. Bobot efektif tercatat di
+  CrossEntropy (ekivalen `class_weight='balanced'` sklearn) dari distribusi training
+  **setelah** balancing; atau isi `loss_weight` manual per kelas. Bobot efektif tercatat di
   `run_<nama>.json`.
 - **Evaluasi menyeluruh** — training/validation split stratified, plus evaluasi di
   **test set resmi** dan **validation set resmi** (193 label). Setiap evaluasi menyimpan
@@ -34,13 +36,19 @@ Notebook utama: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet
   **sampel salah klasifikasi** (CSV + grid gambar).
 - **Kaggle-ready** — autodetect `/kaggle/input`; semua output tersimpan ke `output/`.
 - **EDA bawaan** — distribusi kelas + statistik deskriptif gambar untuk laporan metodologi.
+- **Notebook EDA pendamping** — `kaggle/isic2018_eda.ipynb`: 7 tahap EDA
+  (distribusi kelas, analisis `lesion_id` & risiko leakage, visualisasi per kelas, resolusi &
+  aspect ratio, distribusi warna + sanity-check ColorJitter, duplikat/near-duplikat, dan
+  ukuran split per kelas). Analisis read-only, artefak ke `output_eda/` (lihat `docs/eda.md`).
 
 ## Isi Repo
 
 ```
 ├── src/isic2018_resnet_pipeline.py  # script sumber pipeline
 ├── kaggle/isic2018_resnet_pipeline.ipynb   # notebook utama
-├── docs/pipeline.md                 # dokumentasi alur (flow v1)
+├── kaggle/isic2018_eda.ipynb        # notebook EDA (7 tahap)
+├── docs/pipeline.md                 # dokumentasi alur pipeline
+├── docs/eda.md                      # dokumentasi tujuan & tahapan EDA
 ├── CHANGELOG.md                     # riwayat perubahan
 ├── dataset/                         # dataset ISIC 2018 Task 3 (lokal)
 └── output/                          # hasil run
@@ -49,8 +57,11 @@ Notebook utama: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet
 ## Cara Menjalankan
 
 1. **Lokal**: `python src/isic2018_resnet_pipeline.py` (perlu PyTorch + torchvision).
-2. **Notebook**: buka `kaggle/isic2018_resnet_pipeline.ipynb`, jalankan cell 1–19 berurutan.
-3. **Kaggle**: upload dataset berisi folder standar ISIC 2018 Task 3
+2. **Pipeline**: buka `kaggle/isic2018_resnet_pipeline.ipynb`, jalankan cell 1–19 berurutan.
+3. **EDA (opsional)**: buka `kaggle/isic2018_eda.ipynb`, jalankan cell berurutan; hasil ke
+   `output_eda/`. Analysis `lesion_id` aktif bila `HAM10000_metadata.csv` ada di `dataset/`
+   atau ditemukan di `/kaggle/input`.
+4. **Kaggle**: upload dataset berisi folder standar ISIC 2018 Task 3
    (`ISIC2018_Task3_Training_Input`, `..._Test_Input`, `..._Validation_Input`, dan folder
    `*_GroundTruth`). Path terdeteksi otomatis.
 

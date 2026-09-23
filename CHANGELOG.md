@@ -2,13 +2,27 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [v1.6.0] - 2026-09-24
 
 ### Added
 - **Ringkasan arsitektur model ala Keras** (Section 10.1): `model_summary` menampilkan tabel
   per layer — nama, tipe, output shape (dari satu forward pass dummy), jumlah parameter, dan
   parameter trainable. Memakai `torchinfo` bila tersedia, fallback ke helper kustom tanpa
   dependency; tabel disimpan ke `output/arch_summary_<experiment_name>.csv`.
+- **Notebook EDA pendamping** — `kaggle/isic2018_eda.ipynb` (22 cell, read-only, artefak ke
+  `output_eda/`): 7 tahap EDA —
+  1) distribusi kelas (termasuk rasio tiap kelas vs kelas terkecil & terbesar), 2) analisis
+  `lesion_id` (jumlah image / unique lesion / images per
+  lesion + risiko data leakage saat split, aktif bila `HAM10000_metadata.csv` tersedia),
+  3) visualisasi 3 gambar per kelas, 4) resolusi & aspect ratio + diskusi resize 224×224
+  (cost, detail, receptive field, memori, batch), 5) distribusi warna (RGB histogram &
+  brightness/contrast/saturation) + sanity-check ColorJitter via `PIL.ImageEnhance`,
+  6) duplikat eksak (md5) & near-duplikat (dhash) antar partition, 7) ukuran split per kelas
+  + opsi split berbasis `lesion_id`. Dependensi: pandas/numpy/matplotlib/PIL (+
+  scikit-learn untuk tahap 7). Deskripsi lengkap di `docs/eda.md`.
+- **Snapshot hasil EDA** di `docs/eda.md` — distribusi & rasio kelas (NV:DF 58.3:1),
+  resolusi seragam 600×450 (4:3 → center-crop/pad), warna (R dominan, saturation ~0.31),
+  sanity-check ColorJitter ±0.2 (wajar), dan ukuran split per kelas (DF: 17/val, 44/test).
 
 ### Changed
 - Nama eksperimen kini dikontrol melalui CONFIG (`experiment_name`, Section 1) — dipakai
@@ -16,6 +30,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `runs_log.csv`). Tidak ada lagi `run_name` hardcoded di cell training; eksperimen cukup
   mengubah `experiment_name` + nilai hyperparameter di CONFIG lalu menjalankan ulang
   Section 14. Variabel hasil training diubah `baseline_*` → `trained_*`.
+- `loss_weight_mode: 'inverse_frequency'` kini menghitung bobot dari distribusi training
+  **setelah balancing** (`train_df_balanced`), bukan training asli — bobot relatif terhadap
+  set yang benar-benar dilatih. `run_<nama>.json` mencatat sumbernya
+  (`loss.loss_weight_distribution`).
+- Opsi optimizer bertambah: `'adamw'` (`optim.AdamW`) selain `'adam' | 'sgd' | 'rmsprop'`.
+
+### Fixed
+- `downsample_majority` dengan `balance_threshold: 0` (balancing nonaktif) sebelumnya
+  mengosongkan seluruh data; kini threshold `<= 0` mengembalikan data apa adanya.
 
 ## [v1.5] - 2026-09-21
 
