@@ -30,6 +30,18 @@ Notebook: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet_pipel
   CrossEntropy (ekivalen `class_weight='balanced'` sklearn) dari distribusi training
   **setelah** balancing; atau isi `loss_weight` manual per kelas. Bobot efektif tercatat di
   `run_<nama>.json`.
+- **Oversample kelas minoritas via augmentasi acak** — sampel minoritas direplikasi hingga
+  `oversample_target` sample per kelas; tiap salinan di-augmentasi acak **hanya saat training**:
+  rotasi (`aug_rotation_range`, default 20°), pergeseran H/V (`aug_width/height_shift_range`,
+  default 0.2), flip horizontal (`aug_horizontal_flip`, default true). Target 0 = replikasi
+  dilewati (kelas minoritas tetap di-augmentasi dari sampel asli). Aktif via `oversample_augment`.
+- **Resize sesuai rasio data** — `resize_mode`: `'stretch'` (tekan ke persegi, default) |
+  `'center_crop'` | `'random_crop'` (pertahankan aspek; random crop hanya saat training,
+  evaluasi selalu center-crop agar deterministik) — menyikapi temuan EDA resolusi 600×450
+  (4:3).
+- **Validation objective** — `val_objective` memilih metrik untuk memilih & memonitor model
+  terbaik selama training: `'accuracy' | 'balanced_accuracy' | 'macro_f1'` (dihitung tanpa
+  dependency sklearn; kurva objective ikut di-plot dan dicatat di run).
 - **Evaluasi menyeluruh** — training/validation split stratified, plus evaluasi di
   **test set resmi** dan **validation set resmi** (193 label). Setiap evaluasi menyimpan
   metrik & classification report CSV, confusion matrix PNG, prediksi per gambar CSV, dan
@@ -49,6 +61,7 @@ Notebook: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet_pipel
 ├── kaggle/isic2018_eda.ipynb        # notebook EDA (7 tahap)
 ├── docs/pipeline.md                 # dokumentasi alur pipeline
 ├── docs/eda.md                      # dokumentasi tujuan & tahapan EDA
+├── docs/eksperimen.md               # rencana eksperimen & ablation (roadmap)
 ├── CHANGELOG.md                     # riwayat perubahan
 ├── dataset/                         # dataset ISIC 2018 Task 3 (lokal)
 └── output/                          # hasil run
@@ -83,4 +96,6 @@ Challenge 2018 (juga terkait HAM10000):
   multi-source dermatoscopic images of common pigmented skin lesions", Scientific Data
   5, 180161 (2018). <https://doi.org/10.1038/sdata.2018.161>
 
-Lihat juga `docs/pipeline.md` untuk alur lengkap dan daftar output.
+Lihat juga `docs/pipeline.md` untuk alur lengkap dan daftar output, serta
+`docs/eksperimen.md` untuk **rencana eksperimen** berikutnya (perbandingan baseline,
+attention squeeze-and-excitation, strategi fine-tuning backbone, dan ablation).

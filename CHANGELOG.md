@@ -2,6 +2,30 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+- **Oversample kelas minoritas via augmentasi acak** — `oversample_augment` (default
+  `true`) mereplikasi sampel kelas minoritas hingga **`oversample_target` sample per kelas**;
+  tiap salinan di-augmentasi acak **hanya saat training** melalui CONFIG:
+  `aug_rotation_range` (default `20` derajat), `aug_width_shift_range`/`aug_height_shift_range`
+  (default `0.2`), `aug_horizontal_flip` (default `true`). `oversample_target: 0`
+  melewati replikasi (minoritas tetap di-augmentasi dari sampel asli). Diterapkan di
+  Section 7 (`oversample_minority`) sebelum transform Section 8.
+- **Resize mode** — `resize_mode: 'stretch' | 'center_crop' | 'random_crop'`. Mode crop
+  mempertahankan aspek (resize sisi terpendek lalu potong); `random_crop` hanya aktif saat
+  training, evaluasi selalu `CenterCrop` agar deterministik — menyikapi temuan EDA
+  resolusi 600×450 (4:3).
+- **Validation objective** — `val_objective: 'accuracy' | 'balanced_accuracy' | 'macro_f1'`
+  dipakai untuk memilih & memonitor model terbaik (`model_*_best.pt`), di-plot di
+  `plot_history`, dan dicatat di `run_*.json` / `runs_log.csv`. Dihitung via `compute_metric`
+  tanpa dependency sklearn. Evaluasi final juga melaporkan balanced accuracy & macro F1
+  (`test_metrics.csv` / `validation_metrics.csv`).
+- **Roadmap eksperimen** — `docs/eksperimen.md` berisi rencana perbandingan baseline
+  (CNN / ResNet / Transformer), eksperimen attention squeeze-and-excitation dengan 4
+  strategi fine-tuning (`layer4`, `layer3+layer4`, full, frozen backbone), dan ablation
+  (CNN → CNN+ResNet → CNN+ResNet+CrossEntropy).
+
 ## [v1.6.0] - 2026-09-24
 
 ### Added

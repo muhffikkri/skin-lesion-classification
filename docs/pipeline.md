@@ -1,6 +1,6 @@
 # Pipeline: Klasifikasi Skin Lesion (ISIC 2018 Task 3)
 
-Dokumentasi alur terkini (v1.5) dari notebook `kaggle/isic2018_resnet_pipeline.ipynb`.
+Dokumentasi alur terkini (v1.7) dari notebook `kaggle/isic2018_resnet_pipeline.ipynb`.
 Notebook dibangun dari `src/isic2018_resnet_pipeline.py` melalui generator
 (`build_resnet_notebook.py`); **seluruh perubahan alur dilakukan di generator lalu
 notebook diregenerasi ulang**.
@@ -25,11 +25,13 @@ skin-lesion-classification/
 
 1. **Configuration (CONFIG)** — satu tempat untuk semua hyperparameter: path dataset,
    path ground truth, output, kelas & ukuran gambar, split ratio, balancing, normalisasi
-   ImageNet, training (batch/lr/dropout/optimizer/epoch), arsitektur model (depth,
-   residual block, channel, classifier hidden dim), dan **bobot loss** (`loss_weight`
-   manual per kelas / `loss_weight_mode` otomatis inverse-frequency). Path ground truth
-   dicari otomatis (folder `*_GroundTruth`), dan `data_dir` autodetect `/kaggle/input`.
-   `OUTPUT_DIR` dibuat saat config dimuat.
+   ImageNet, training (batch/lr/dropout/optimizer/epoch), **validation objective**
+   (`val_objective`), **resize mode** (`resize_mode`), **oversample augmentasi minoritas**
+   (`oversample_augment`, `oversample_target`, `aug_*`), arsitektur model (depth, residual block, channel,
+   classifier hidden dim), dan **bobot loss** (`loss_weight` manual per kelas /
+   `loss_weight_mode` otomatis inverse-frequency). Path ground truth dicari otomatis
+   (folder `*_GroundTruth`), dan `data_dir` autodetect `/kaggle/input`. `OUTPUT_DIR`
+   dibuat saat config dimuat.
 2. **Imports** — torch, torchvision, pandas, matplotlib/seaborn, sklearn.
 3. **Muat Ground Truth** — training (10015), test (1512), validation resmi (193) dibaca
    dari CSV one-hot lalu dipetakan ke label tunggal (`dx`).
@@ -38,10 +40,17 @@ skin-lesion-classification/
    piksel per channel) pada sampel acak `sample_size`.
 6. **Split & Mapping Label** — stratified split (default `val_ratio=0.15`) dari training
    set sebagai validation training; `class_to_idx` dipakai juga untuk validation resmi.
-7. **Balancing (opsional)** — downsampling kelas mayoritas di atas `balance_threshold`
-   mengikuti strategi rujukan (NV di-training penuh, dsb.).
-8. **Transform & Augmentasi** — resize 224x224, augmentasi ringan (flip/rotasi) untuk
-   training, normalisasi memakai mean/std ImageNet.
+7. **Balancing + Oversample (opsional)** — downsampling kelas mayoritas di atas
+   `balance_threshold` mengikuti strategi rujukan (NV di-training penuh, dsb.), lalu
+   **oversample kelas minoritas** (`oversample_augment`): sampel minoritas direplikasi
+   hingga **`oversample_target` sample per kelas** (0 = replikasi dilewati); tiap salinan
+   di-augmentasi acak saat training.
+8. **Transform & Augmentasi** — resize mengikuti `resize_mode`: `'stretch'` (tekan ke
+   persegi), `'center_crop'` (pertahankan aspek + potong tengah), `'random_crop'`
+   (pertahankan aspek + potong acak, **hanya training**; evaluasi selalu `CenterCrop`
+   agar deterministik). Augmentasi acak ter-konfigurasi (`aug_rotation_range`,
+   `aug_width/height_shift_range`, `aug_horizontal_flip`) + ColorJitter ringan **hanya
+   untuk training**; evaluasi tanpa augmentasi. Normalisasi memakai mean/std ImageNet.
 9. **Custom Dataset** — `ISICDataset` membaca path dan mentransform gambar.
 10. **Model ResNet (configurable)** — `build_model` dengan knob: `depth`
     (18/34/50/101), `residual_blocks` (`basic`/`bottleneck`), `base_channels`,
@@ -55,16 +64,20 @@ skin-lesion-classification/
       **tanpa dependency**. Tabel disimpan ke `output/arch_summary_<experiment_name>.csv`.
 11. **Fungsi Training & Evaluasi per Epoch** — `train_one_epoch`, `evaluate`, serta
     `build_criterion()` yang membuat CrossEntropyLoss dengan bobot per kelas (manual atau
-    otomatis inverse-frequency); menyimpan metrik loss/accuracy tiap epoch.
+    otomatis inverse-frequency); **`compute_metric`** menghitung `val_objective`
+    (`'accuracy' | 'balanced_accuracy' | 'macro_f1'`, tanpa dependency sklearn);
+    menyimpan metrik loss/accuracy/objective tiap epoch.
 12. **Fungsi Utama Training (`run_training`)** — menerima seluruh hyperparameter sebagai
     argumen (default dari `CONFIG`). Mengembalikan `(model, history, run_record)` dan
     menulis:
-    - checkpoint `model_<run>_best.pt` (state_dict val_acc terbaik),
+    - checkpoint `model_<run>_best.pt` (state_dict terbaik menurut **`val_objective`**),
     - **`run_<run>.json`** berisi skema lengkap training-test-eval (jumlah sampel
-      train/val-split/test-resmi/val-resmi, rasio split, balancing, seed, device),
-      seluruh hyperparameter, arsitektur, snapshot `CONFIG`, history, dan metrik akhir;
+      train/val-split/test-resmi/val-resmi, rasio split, balancing, oversample, seed,
+      device), seluruh hyperparameter, arsitektur, snapshot `CONFIG`, history (termasuk
+      kurva `val_metric` + `val_objective`), dan metrik akhir;
     - baris ringkas di **`runs_log.csv`** (re-run menggantikan baris yang sama).
-13. **Plot Kurva** — loss & accuracy training vs validation (PNG + tampilan).
+13. **Plot Kurva** — loss & accuracy/objective training vs validation (PNG + tampilan;
+    kurva `val_objective` digambar garis putus-putus).
 14. **Satu Cell Training (baseline / eksperimen)** — SATU-SATUNYA cell yang menjalankan
     `run_training`. Baseline memakai default `CONFIG`. Untuk **eksperimen**: ubah nilai
     hyperparameter langsung di `CONFIG` (Section 1) dan ganti **`experiment_name`** di
@@ -72,14 +85,16 @@ skin-lesion-classification/
     **1 eksperimen = 1 model = 1 run** (bukan ablation).
 15. **Eksperimen Hyperparameter (1 model per eksperimen)** — panduan nilai yang bisa dicoba
     (LR, batch size, dropout, optimizer/weight decay, depth, residual block, base channels,
-    classifier hidden dim) + contoh `experiment_name`. Tidak ada cell eksperimen terpisah;
+    classifier hidden dim, `resize_mode`, `val_objective`, oversample augmentasi) + contoh
+    `experiment_name`. Tidak ada cell eksperimen terpisah;
     cukup cell Section 14. Cell pembantu `current_run_cfg` mencetak konfigurasi efektif yang
     akan dipakai (termasuk `experiment_name`).
 16. **Ringkasan Hasil Eksperimen** — tabel dibaca dari `runs_log.csv` (satu baris per run;
     re-run dengan `experiment_name` sama menggantikan baris lama).
 17. **Fungsi Evaluasi Lengkap** — helper `evaluate_and_report` yang dipakai bersama:
-    metrik & classification report (CSV), confusion matrix (PNG), prediksi per-gambar
-    (CSV), dan **sampel salah klasifikasi** (CSV `misclassified_<tag>.csv` + grid PNG).
+    metrik & classification report (CSV), **balanced accuracy & macro F1** (CSV),
+    confusion matrix (PNG), prediksi per-gambar (CSV), dan **sampel salah klasifikasi**
+    (CSV `misclassified_<tag>.csv` + grid PNG).
 18. **Evaluasi Akhir di Test Set Resmi** — tidak pernah disentuh selama training/tuning;
     output ber-prefix `test_*` (`confusion_matrix_test.png`, `test_predictions.csv`, dsb.).
 19. **Evaluasi di Validation Set Resmi** — ground truth resmi (193 label); output
@@ -115,3 +130,9 @@ skin-lesion-classification/
 Validation selama training memakai stratified split (pembanding eksperimen konsisten);
 validation set resmi dipakai untuk evaluasi final terpisah (Section 19). Test set resmi
 hanya disentuh di Section 18.
+
+## Roadmap Eksperimen
+
+Rencana perbandingan baseline, attention (squeeze-and-excitation), strategi fine-tuning
+backbone (frozen / partial / full), dan ablation — lihat
+[`docs/eksperimen.md`](eksperimen.md).

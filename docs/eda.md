@@ -179,7 +179,8 @@ Rasio **NV : DF = 58.3 : 1**.
 | VASC   |         142 |      1.42 |               1.23 |             47.22 |
 
 **Implikasi**: ketimpangan ekstrem (NV 58× DF). Bobot loss `inverse_frequency` +
-balancing wajib dipakai; akurasi bukan metrik utama — F1 per kelas lebih informatif.
+balancing wajib dipakai; akurasi bukan metrik utama — F1 per kelas lebih informatif
+(pipeline mendukung `val_objective: 'balanced_accuracy' | 'macro_f1'`).
 
 ### Tahap 4 — Resolusi & aspect ratio (n=300)
 
@@ -193,7 +194,8 @@ balancing wajib dipakai; akurasi bukan metrik utama — F1 per kelas lebih infor
 
 Semua gambar ISIC 2018 Task 3 berukuran seragam **600×450 (4:3)**. **Implikasi**: resize
 langsung ke 224×224 akan mendistorsi; opsi pipeline yang tepat adalah resize mempertahankan
-rasio lalu **center-crop/pad** ke persegi.
+rasio lalu **center-crop/pad** ke persegi — sudah didukung oleh
+`CONFIG['resize_mode']: 'center_crop' | 'random_crop'` di pipeline.
 
 ### Tahap 5 — Distribusi warna (n=200)
 
