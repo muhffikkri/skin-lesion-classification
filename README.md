@@ -42,6 +42,13 @@ Notebook: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet_pipel
 - **Validation objective** — `val_objective` memilih metrik untuk memilih & memonitor model
   terbaik selama training: `'accuracy' | 'balanced_accuracy' | 'macro_f1'` (dihitung tanpa
   dependency sklearn; kurva objective ikut di-plot dan dicatat di run).
+- **LR scheduler `ReduceLROnPlateau` + early stopping** — keduanya memantau metrik
+  `val_monitor` (default `'macro_f1'` = *validation_macro_f1*) dengan `scheduler_mode: 'max'`
+  (metrik naik = lebih baik). Scheduler memangkas LR setelah `scheduler_patience` epoch stagnan
+  (`scheduler_factor`, `scheduler_min_lr`); training dihentikan setelah
+  `early_stopping_patience` (default `10`) epoch tanpa perbaikan (`early_stopping_min_delta`).
+  Kurva learning rate, `epochs_ran`, `best_epoch`, dan `stopped_early` dicatat di history,
+  `run_<nama>.json`, `runs_log.csv`, dan di-plot.
 - **Evaluasi menyeluruh** — training/validation split stratified, plus evaluasi di
   **test set resmi** dan **validation set resmi** (193 label). Setiap evaluasi menyimpan
   metrik & classification report CSV, confusion matrix PNG, prediksi per gambar CSV, dan

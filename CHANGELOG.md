@@ -5,6 +5,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **LR scheduler `ReduceLROnPlateau` + early stopping** — keduanya memantau metrik
+  `val_monitor` (default `'macro_f1'` = *validation_macro_f1*) dengan `scheduler_mode: 'max'`
+  (nilai metrik naik = lebih baik). Key CONFIG baru: `val_monitor`, `lr_scheduler`
+  (`"ReduceLROnPlateau" | "none"`), `scheduler_mode`, `scheduler_factor` (default `0.1`),
+  `scheduler_patience` (default `5`), `scheduler_min_lr` (default `1e-6`), `early_stopping`
+  (default `true`), **`early_stopping_patience` (default `10`)**, dan
+  `early_stopping_min_delta` (default `0.0`). `scheduler.step(monitor)` dipanggil sekali per
+  epoch setelah evaluasi validation; training di-`break` saat metrik stagnan melewati
+  `early_stopping_patience`. `history` menambah `val_monitor` & `val_lr`;
+  `plot_history` jadi grid 2×2 (loss, accuracy+objective, kurva monitor, kurva LR log);
+  `run_<nama>.json` menambah blok `monitoring` + `epochs_ran`/`best_epoch`/`stopped_early`;
+  `runs_log.csv` menambah `epochs_ran`, `best_epoch`, `stopped_early`, `val_monitor`,
+  `scheduler`, `scheduler_patience`, `es_patience`, `final_lr`. Checkpoint terbaik tetap
+  dipilih berdasarkan `val_objective`.
 - **Oversample kelas minoritas via augmentasi acak** — `oversample_augment` (default
   `true`) mereplikasi sampel kelas minoritas hingga **`oversample_target` sample per kelas**;
   tiap salinan di-augmentasi acak **hanya saat training** melalui CONFIG:

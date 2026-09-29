@@ -26,7 +26,10 @@ skin-lesion-classification/
 1. **Configuration (CONFIG)** — satu tempat untuk semua hyperparameter: path dataset,
    path ground truth, output, kelas & ukuran gambar, split ratio, balancing, normalisasi
    ImageNet, training (batch/lr/dropout/optimizer/epoch), **validation objective**
-   (`val_objective`), **resize mode** (`resize_mode`), **oversample augmentasi minoritas**
+   (`val_objective`), **LR scheduler & early stopping** (`lr_scheduler`,
+   `scheduler_mode`/`factor`/`patience`/`min_lr`, `early_stopping`,
+   `early_stopping_patience`/`min_delta`, metrik yang dipantau `val_monitor`),
+   **resize mode** (`resize_mode`), **oversample augmentasi minoritas**
    (`oversample_augment`, `oversample_target`, `aug_*`), arsitektur model (depth, residual block, channel,
    classifier hidden dim), dan **bobot loss** (`loss_weight` manual per kelas /
    `loss_weight_mode` otomatis inverse-frequency). Path ground truth dicari otomatis
@@ -68,16 +71,21 @@ skin-lesion-classification/
     (`'accuracy' | 'balanced_accuracy' | 'macro_f1'`, tanpa dependency sklearn);
     menyimpan metrik loss/accuracy/objective tiap epoch.
 12. **Fungsi Utama Training (`run_training`)** — menerima seluruh hyperparameter sebagai
-    argumen (default dari `CONFIG`). Mengembalikan `(model, history, run_record)` dan
-    menulis:
+    argumen (default dari `CONFIG`). Memasang **`ReduceLROnPlateau`** dan **early stopping**
+    sesuai CONFIG: keduanya memantau `val_monitor` (default `macro_f1`) dengan mode
+    `scheduler_mode` (default `max`); `scheduler.step(monitor)` dipanggil sekali per epoch
+    setelah evaluasi, dan loop berhenti setelah `early_stopping_patience` epoch tanpa
+    perbaikan. Mengembalikan `(model, history, run_record)` dan menulis:
     - checkpoint `model_<run>_best.pt` (state_dict terbaik menurut **`val_objective`**),
     - **`run_<run>.json`** berisi skema lengkap training-test-eval (jumlah sampel
       train/val-split/test-resmi/val-resmi, rasio split, balancing, oversample, seed,
-      device), seluruh hyperparameter, arsitektur, snapshot `CONFIG`, history (termasuk
-      kurva `val_metric` + `val_objective`), dan metrik akhir;
+      device), seluruh hyperparameter, blok **`monitoring`** (scheduler + early stopping),
+      arsitektur, snapshot `CONFIG`, history (termasuk kurva `val_metric` + `val_objective`,
+      `val_monitor`, dan `val_lr`), dan metrik akhir (`epochs_ran`, `best_epoch`,
+      `stopped_early`),
     - baris ringkas di **`runs_log.csv`** (re-run menggantikan baris yang sama).
-13. **Plot Kurva** — loss & accuracy/objective training vs validation (PNG + tampilan;
-    kurva `val_objective` digambar garis putus-putus).
+13. **Plot Kurva** — grid 2×2: loss, accuracy + `val_objective`, kurva metrik monitor, dan
+    kurva learning rate (sumbu log) (PNG + tampilan).
 14. **Satu Cell Training (baseline / eksperimen)** — SATU-SATUNYA cell yang menjalankan
     `run_training`. Baseline memakai default `CONFIG`. Untuk **eksperimen**: ubah nilai
     hyperparameter langsung di `CONFIG` (Section 1) dan ganti **`experiment_name`** di
@@ -85,7 +93,8 @@ skin-lesion-classification/
     **1 eksperimen = 1 model = 1 run** (bukan ablation).
 15. **Eksperimen Hyperparameter (1 model per eksperimen)** — panduan nilai yang bisa dicoba
     (LR, batch size, dropout, optimizer/weight decay, depth, residual block, base channels,
-    classifier hidden dim, `resize_mode`, `val_objective`, oversample augmentasi) + contoh
+    classifier hidden dim, `resize_mode`, `val_objective`, `val_monitor`, parameter
+    scheduler/early stopping, oversample augmentasi) + contoh
     `experiment_name`. Tidak ada cell eksperimen terpisah;
     cukup cell Section 14. Cell pembantu `current_run_cfg` mencetak konfigurasi efektif yang
     akan dipakai (termasuk `experiment_name`).
