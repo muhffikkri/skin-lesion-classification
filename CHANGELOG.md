@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [v1.8.0] - 2026-09-30
+
 ### Added
 - **Pemilihan skema split di pipeline (`CONFIG['split_scheme']`)** — dua skema, keduanya
   **grouped per-lesion** dan keduanya **tidak pernah memakai 193 gambar validation resmi
@@ -100,6 +102,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Belum ada agregasi OOF (out-of-fold) pada skema k-fold: `kfold_summary_*.csv` berisi
   rata-rata ± std metrik tiap fold, bukan metrik OOF gabungan.
 
+### Added
 - **LR scheduler `ReduceLROnPlateau` + early stopping** — keduanya memantau metrik
   `val_monitor` (default `'macro_f1'` = *validation_macro_f1*) dengan `scheduler_mode: 'max'`
   (nilai metrik naik = lebih baik). Key CONFIG baru: `val_monitor`, `lr_scheduler`
@@ -114,6 +117,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `runs_log.csv` menambah `epochs_ran`, `best_epoch`, `stopped_early`, `val_monitor`,
   `scheduler`, `scheduler_patience`, `es_patience`, `final_lr`. Checkpoint terbaik tetap
   dipilih berdasarkan `val_objective`.
+
+## [v1.7.0] - 2026-09-25
+
+### Added
 - **Oversample kelas minoritas via augmentasi acak** — `oversample_augment` (default
   `true`) mereplikasi sampel kelas minoritas hingga **`oversample_target` sample per kelas**;
   tiap salinan di-augmentasi acak **hanya saat training** melalui CONFIG:
@@ -134,6 +141,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (CNN / ResNet / Transformer), eksperimen attention squeeze-and-excitation dengan 4
   strategi fine-tuning (`layer4`, `layer3+layer4`, full, frozen backbone), dan ablation
   (CNN → CNN+ResNet → CNN+ResNet+CrossEntropy).
+
 
 ## [v1.6.0] - 2026-09-24
 
