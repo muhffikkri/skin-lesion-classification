@@ -1,6 +1,6 @@
 # Pipeline: Klasifikasi Skin Lesion (ISIC 2018 Task 3)
 
-Dokumentasi alur terkini (v1.8) dari notebook `kaggle/isic2018_resnet_pipeline.ipynb`.
+Dokumentasi alur terkini (v1.8) dari notebook `notebooks/isic2018_resnet_pipeline.ipynb`.
 Notebook adalah **sumber kebenaran** alur training; `src/isic2018_resnet_pipeline.py` adalah
 script lama yang dipakai sebagai referensi (bukan generator notebook).
 
@@ -11,8 +11,8 @@ Rujukan tugas: EMED (7 kelas diagnosis) pada ISIC 2018 Task 3
 
 ```
 skin-lesion-classification/
-├── kaggle/isic2018_resnet_pipeline.ipynb  # notebook utama (output akhir)
-├── kaggle/isic2018_eda.ipynb               # notebook EDA (acuan keputusan split)
+├── notebooks/isic2018_resnet_pipeline.ipynb  # notebook utama (output akhir)
+├── notebooks/isic2018_eda.ipynb               # notebook EDA (acuan keputusan split)
 ├── src/isic2018_resnet_pipeline.py        # script referensi (versi lama, tidak di-generate)
 ├── docs/pipeline.md                       # dokumen ini
 ├── README.md
@@ -205,12 +205,12 @@ training.
   Section 14 (1 eksperimen = 1 model per fold).
 - **Script**: `src/isic2018_resnet_pipeline.py` adalah versi lama (referensi), **belum**
   mendukung `split_scheme`; pipeline=klasifikasi yang berjalan adalah notebook.
-- **Kaggle**: upload `kaggle/isic2018_resnet_pipeline.ipynb` + dataset dengan folder
+- **Kaggle**: upload `notebooks/isic2018_resnet_pipeline.ipynb` + dataset dengan folder
   standar ISIC 2018 Task 3 (`..._Input`, folder `*_GroundTruth`, dan
   `ISIC2018_Task3_Training_LesionGroupings.csv`). Path `data_dir` dan file metadata
   terdeteksi otomatis, termasuk layout bersarang
   `/kaggle/input/datasets/<user>/<dataset>/ISIC2018_Task3_Training_Input/...`.
-- **EDA**: jalankan `kaggle/isic2018_eda.ipynb` terlebih dahulu bila ingin memahami data
+- **EDA**: jalankan `notebooks/isic2018_eda.ipynb` terlebih dahulu bila ingin memahami data
   sebelum training (distribusi kelas, `lesion_id`, resolusi, warna, duplikat, ukuran split).
   Lihat [`docs/eda.md`](eda.md) untuk tujuan & penjelasan tiap tahapan.
 

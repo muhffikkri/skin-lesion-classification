@@ -1,6 +1,6 @@
 # Rencana Eksperimen (Roadmap)
 
-Rencana eksperimen & ablation untuk pipeline `kaggle/isic2018_resnet_pipeline.ipynb`.
+Rencana eksperimen & ablation untuk pipeline `notebooks/isic2018_resnet_pipeline.ipynb`.
 Status setiap item harus diperbarui saat sudah dijalankan (tandai dengan `[x]` + tautan
 run `run_<nama>.json` bila ada).
 

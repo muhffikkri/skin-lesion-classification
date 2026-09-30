@@ -3,11 +3,11 @@
 Pipeline pelatihan & evaluasi model **ResNet** untuk klasifikasi **7 kelas diagnosis lesi
 kulit** (MEL, NV, BCC, AKIEC, BKL, DF, VASC) pada **ISIC 2018 Task 3** dengan PyTorch.
 
-Notebook: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet_pipeline.ipynb)
+Notebook: [`notebooks/isic2018_resnet_pipeline.ipynb`](notebooks/isic2018_resnet_pipeline.ipynb)
 (berbahasa Indonesia, siap dijalankan lokal maupun di Kaggle) adalah sumber kebenaran alur
 training; `src/isic2018_resnet_pipeline.py` adalah script versi lama (referensi).
 Pendamping analisis data awal:
-[`kaggle/isic2018_eda.ipynb`](kaggle/isic2018_eda.ipynb) (7 tahap EDA, lihat
+[`notebooks/isic2018_eda.ipynb`](notebooks/isic2018_eda.ipynb) (7 tahap EDA, lihat
 [`docs/eda.md`](docs/eda.md)).
 
 ## Fitur Utama
@@ -82,7 +82,7 @@ Pendamping analisis data awal:
   `test_private_metrics_all.csv` dan `test_public_metrics_all.csv`.
 - **Kaggle-ready** — autodetect `/kaggle/input`; semua output tersimpan ke `output/`.
 - **EDA bawaan** — distribusi kelas + statistik deskriptif gambar untuk laporan metodologi.
-- **Notebook EDA pendamping** — `kaggle/isic2018_eda.ipynb`: 7 tahap EDA
+- **Notebook EDA pendamping** — `notebooks/isic2018_eda.ipynb`: 7 tahap EDA
   (distribusi kelas, analisis `lesion_id` & risiko leakage, visualisasi per kelas, resolusi &
   aspect ratio, distribusi warna + sanity-check ColorJitter, duplikat/near-duplikat, dan
   perbandingan 4 skenario split per kelas). Sumber `lesion_id`:
@@ -93,8 +93,8 @@ Pendamping analisis data awal:
 
 ```
 ├── src/isic2018_resnet_pipeline.py  # script versi lama (referensi)
-├── kaggle/isic2018_resnet_pipeline.ipynb   # notebook utama
-├── kaggle/isic2018_eda.ipynb        # notebook EDA (7 tahap)
+├── notebooks/isic2018_resnet_pipeline.ipynb  # notebook utama
+├── notebooks/isic2018_eda.ipynb               # notebook EDA (7 tahap)
 ├── docs/pipeline.md                 # dokumentasi alur pipeline
 ├── docs/eda.md                      # dokumentasi tujuan & tahapan EDA
 ├── docs/eksperimen.md               # rencana eksperimen & ablation (roadmap)
@@ -105,12 +105,12 @@ Pendamping analisis data awal:
 
 ## Cara Menjalankan
 
-1. **Pipeline**: buka `kaggle/isic2018_resnet_pipeline.ipynb`, jalankan Section 1–19
+1. **Pipeline**: buka `notebooks/isic2018_resnet_pipeline.ipynb`, jalankan Section 1–19
    berurutan. Section 6 mencetak skema split yang dipakai; Section 14 melatih semua fold.
 2. **Skema split**: set `CONFIG['split_scheme']` = `"kfold"` (default) atau `"holdout"`
    di Section 1. `k_folds` hanya dipakai pada `"kfold"`; `val_ratio` hanya dipakai pada
    `"holdout"`.
-3. **EDA (opsional)**: buka `kaggle/isic2018_eda.ipynb`, jalankan cell berurutan; hasil ke
+3. **EDA (opsional)**: buka `notebooks/isic2018_eda.ipynb`, jalankan cell berurutan; hasil ke
    `output_eda/`. Analisis `lesion_id` aktif bila
    `ISIC2018_Task3_Training_LesionGroupings.csv` ada di `dataset/` atau ditemukan di
    `/kaggle/input`.

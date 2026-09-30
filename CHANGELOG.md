@@ -74,6 +74,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   per-lesi, bukan `StratifiedGroupKFold`/`GroupKFold` (hanya kfold yang memakainya).
 
 ### Changed
+- **Notebook dipindahkan dari `kaggle/` ke `notebooks/`** (isi file tidak berubah) —
+  semua referensi path di `README.md`, `docs/pipeline.md`, `docs/eda.md`, dan
+  `docs/eksperimen.md` (termasuk blok "Struktur Repo") diperbarui ke
+  `notebooks/isic2018_resnet_pipeline.ipynb` & `notebooks/isic2018_eda.ipynb`. Path
+  `/kaggle/input/**` (lokasi dataset saat runtime Kaggle) tidak berubah.
 - `docs/pipeline.md` — Section 1/6/7/12/14/16/18/19 ditulis ulang untuk skema split;
   ditambah tabel perbandingan kfold vs holdout, tabel output baru, dan catatan evaluasi
   (193 gambar = public test hanya pada kfold). Klaim generator `build_resnet_notebook.py`

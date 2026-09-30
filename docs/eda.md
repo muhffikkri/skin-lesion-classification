@@ -1,6 +1,6 @@
 # Eksplorasi Data (EDA) — Tujuan & Penjelasan Tahapan
 
-Notebook: [`kaggle/isic2018_eda.ipynb`](../kaggle/isic2018_eda.ipynb)
+Notebook: [`notebooks/isic2018_eda.ipynb`](../notebooks/isic2018_eda.ipynb)
 
 EDA (Exploratory Data Analysis) adalah langkah **diagnosis data terlebih dahulu sebelum
 training**: memahami distribusi, struktur `lesion_id`, karakteristik visual, resolusi, warna,
@@ -345,4 +345,4 @@ lain: penggunaan bobot loss / balancing (Tahap 1 & 7), **split berbasis `lesion_
 k-fold grouped** (Tahap 2 & 7), pemilihan augmentasi warna yang tidak merusak distribusi asli
 (Tahap 5), keputusan resize 224×224 (Tahap 4), dan ekslusi duplikat dari split (Tahap 6).
 `docs/pipeline.md` menjelaskan bagaimana keputusan ini diimplementasikan di pipeline
-training (`kaggle/isic2018_resnet_pipeline.ipynb`).
+training (`notebooks/isic2018_resnet_pipeline.ipynb`).
