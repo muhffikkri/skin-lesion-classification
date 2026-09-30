@@ -5,6 +5,96 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **Pemilihan skema split di pipeline (`CONFIG['split_scheme']`)** — dua skema, keduanya
+  **grouped per-lesion** dan keduanya **tidak pernah memakai 193 gambar validation resmi
+  untuk training**:
+  - **`"kfold"` (default, `k_folds=5`)** — `StratifiedGroupKFold` pada training saja
+    (`shuffle=True`, `random_state` dari CONFIG, fallback `GroupKFold`). 193 gambar
+    validation resmi = **public test**; 1.512 gambar test resmi = **private test**;
+    menghasilkan `k_folds` model (`<experiment_name>_f0`…`_f<k-1>`).
+  - **`"holdout"` (`val_ratio=0.15`)** — training di-split sekali per-lesi lalu
+    **dimasukkan ke validation bersama 193 gambar validation resmi**; test resmi tetap
+    private test; tidak ada public test independen.
+  - Struktur baru di Section 5–12: `SPLIT_JOBS` (satu dict per fold/job berisi `train`,
+    `val`, `fold`, `train_balanced`), `TEST_PUBLIC_DF` (kfold), `TEST_PRIVATE_DF`,
+    balancing/oversampling **per split job**, `run_training(train_data, val_data,
+    train_balanced, fold)`, serta `RUN_RESULTS` (model per fold untuk Section 18–19).
+  - Evaluasi per fold + agregat: `test_private_metrics_all.csv` (private test) dan
+    `test_public_metrics_all.csv` (public test, hanya kfold); prefix `public_*` menggantikan
+    `validation_*`. Output baru: `split_summary.csv`, `kfold_summary_<experiment_name>.csv`.
+    `runs_log.csv` dapat kolom baru `split_scheme` & `fold`; `run_<run>.json` dapat blok
+    `scheme`.
+  - Key CONFIG baru: `split_scheme`, `k_folds`, `lesion_groupings`,
+    `lesion_groupings_file`, `ham10000_metadata` (resolver sama seperti di EDA: path
+    eksplisit → `dataset/` → rekursif `/kaggle/input/**`).
+- **Skenario split lesion-aware di EDA Tahap 7** — perbandingan 4 skenario dengan jumlah
+  **per kelas**: (1) stratified split per-image (skema pipeline lama), (2) stratified
+  split per-lesion, (3) **k-fold grouped per-lesion** pada training saja via
+  `StratifiedGroupKFold`, dan (4) **holdout**: split `val_ratio` + validation resmi
+  digabung (meniru `split_scheme="holdout"`). Dilaporkan jumlah gambar per kelas tiap fold
+  (min..max) untuk mengecek keseimbangan. Key EDA_CFG baru: **`k_folds`** (default `5`) dan
+  **`combine_train_val`** (default `false`, dokumentasi saja — tidak memengaruhi pipeline).
+  Output baru: `eda_split_lesion_counts.csv`, `eda_split_leak_summary.csv`,
+  `eda_split_holdout_counts.csv`, `eda_split_compare.png`, `eda_cv_folds.csv`.
+- **Sumber `lesion_id` resmi** — EDA kini memakai
+  `ISIC2018_Task3_Training_LesionGroupings.csv` (rilis resmi Task 3) sebagai sumber utama,
+  dengan `HAM10000_metadata.csv` hanya sebagai fallback. Pencarian otomatis: path eksplisit
+  (`EDA_CFG['lesion_groupings']`) → `dataset/` → rekursif `/kaggle/input/**` (menangani path
+  bersarang `/kaggle/input/datasets/<user>/<dataset>/`). Key EDA_CFG baru:
+  `lesion_groupings`, `lesion_groupings_file`, `ham10000_metadata`.
+- **Distribusi kelas dua skenario (Tahap 1)** — Skenario A memakai partisi rilis asli
+  (train / validation resmi / test resmi, `eda_class_dist.csv`), Skenario B memakai training
+  yang dipecah jadi train+val (`eda_class_dist_split.csv`), plus plot dua panel
+  `eda_class_dist.png`.
+
+### Fixed
+- **Resolusi folder training yang duplikat** (EDA + pipeline) — di Kaggle, container dan
+  folder gambar keduanya bernama `ISIC2018_Task3_Training_Input`, sehingga resolver memilih
+  container yang kosong (`Train gambar: 0`, sampel grid tidak muncul, `KeyError: 'width'`
+  di EDA Tahap 4). Kini `_find_by_name` memilih kandidat yang **benar-benar berisi file
+  gambar** (`_dir_score`, kandidat langsung kosong diabaikan) → `TRAIN_IMG_DIR` menunjuk folder
+  gambar sebenarnya dan `DATA_DIR` = induknya.
+- **Guard folder gambar kosong** (EDA + pipeline) — Section 1 mencetak jumlah gambar per
+  partisi + peringatan bila 0; EDA Tahap 3/4/5/5b/6 dan EDA Data Characteristics pipeline
+  melewatkan analisis dengan pesan jelas (bukan crash) saat folder kosong; DataFrame diberi
+  kolom eksplisit (`["image","width","height"]`, `["image","split","md5"]`) dan samsel
+  pipeline di-clamp ke jumlah data + difilter hanya file yang ada.
+- **Resolusi path dataset di Section 1 (EDA + pipeline)** — sebelumnya folder test/validation/
+  ground truth hanya dicari sebagai anak langsung `data_dir`, sehingga gagal pada dataset
+  Kaggle yang tersarang
+  `/kaggle/input/datasets/<user>/<dataset>/ISIC2018_Task3_Training_Input/` + semua folder
+  (`AssertionError: Test: folder tidak ada -> .../ISIC2018_Task3_Test_Input`). Kini setiap
+  folder & CSV dicari **berdasarkan nama**: anak langsung `data_dir` → satu level di atasnya
+  → `/kaggle/input` → penelusuran rekursif (folder penuh gambar dipangkas agar cepat).
+  `data_dir` boleh path relatif (`dataset`), path lengkap Kaggle, atau kosong; pesan error
+  menyebut folder yang tidak ditemukan. Pencarian `LesionGroupings`/`HAM10000_metadata`
+  memakai resolver yang sama dan memaafkan typo nama file (mis.
+  `...LesionGroupings.csv.csv`) maupun path penuh di `lesion_groupings_file`.
+- **Redaksi README soal algoritma split** — holdout memakai `train_test_split` stratified
+  per-lesi, bukan `StratifiedGroupKFold`/`GroupKFold` (hanya kfold yang memakainya).
+
+### Changed
+- `docs/pipeline.md` — Section 1/6/7/12/14/16/18/19 ditulis ulang untuk skema split;
+  ditambah tabel perbandingan kfold vs holdout, tabel output baru, dan catatan evaluasi
+  (193 gambar = public test hanya pada kfold). Klaim generator `build_resnet_notebook.py`
+  dihapus: notebook adalah sumber kebenaran, `src/isic2018_resnet_pipeline.py` script lama.
+- `README.md` — fitur skema split per-lesion, alur Section 14 yang looping fold, dan
+  petunjuk menjalankan pipeline/EDA.
+- `docs/eda.md` — Tahap 1 & 2 & 7 ditulis ulang mengikuti kode baru; snapshot diisi angka
+  asli: 10.015 gambar = **7.470 lesi** (1.956 lesi multi-gambar, maks. 6, 4.501 gambar
+  terdampak, 0 konflik label), **leakage 589 lesi / 1.420 gambar (14,2%)** pada split
+  per-image vs **0** pada split per-lesion, tabel fold k-fold 5, serta tabel Skenario 4
+  (holdout: 8.518 train / 1.497 + 193 val).
+
+### Known limitations
+- `LesionGroupings` hanya mencakup training. Gambar validation resmi (193) dan test resmi
+  (1.512) tidak punya `lesion_id`, sehingga lesi lintas training↔validation/test **tidak
+  bisa disingkirkan** untuk 193 gambar tersebut. Karena itu **193 gambar tidak pernah
+  dipakai training** di kedua skema split; pada skema holdout risikonya tetap ada pada
+  validation set dan tidak ada public test independen.
+- Belum ada agregasi OOF (out-of-fold) pada skema k-fold: `kfold_summary_*.csv` berisi
+  rata-rata ± std metrik tiap fold, bukan metrik OOF gabungan.
+
 - **LR scheduler `ReduceLROnPlateau` + early stopping** — keduanya memantau metrik
   `val_monitor` (default `'macro_f1'` = *validation_macro_f1*) dengan `scheduler_mode: 'max'`
   (nilai metrik naik = lebih baik). Key CONFIG baru: `val_monitor`, `lr_scheduler`

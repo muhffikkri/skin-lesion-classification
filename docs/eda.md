@@ -1,36 +1,46 @@
 # Eksplorasi Data (EDA) — Tujuan & Penjelasan Tahapan
 
-Notebook: [`kaggle/isic2018_eda.ipynb`](../kaggle/isic2018_eda.ipynb) · Generator: `build_eda_notebook.py`
+Notebook: [`kaggle/isic2018_eda.ipynb`](../kaggle/isic2018_eda.ipynb)
 
 EDA (Exploratory Data Analysis) adalah langkah **diagnosis data terlebih dahulu sebelum
 training**: memahami distribusi, struktur `lesion_id`, karakteristik visual, resolusi, warna,
-duplikasi, dan ukuran split. Hasil EDA menjadi dasar keputusan desain pipeline
+duplikasi, dan skenario ukuran split. Hasil EDA menjadi dasar keputusan desain pipeline
 (lihat [pipeline.md](pipeline.md)) seperti `loss_weight`, balancing, augmentasi, resize, dan
 interpretasi metrik.
 
 Semua analisis **read-only**; artefak (CSV + PNG) disimpan ke `output_eda/`. Di Kaggle,
 dataset terdeteksi otomatis dari `/kaggle/input`; di lokal dari folder `dataset/`.
+Folder dicari **berdasarkan nama**, sehingga layout bersarang Kaggle
+(`/kaggle/input/datasets/<user>/<dataset>/ISIC2018_Task3_Training_Input/`
+`ISIC2018_Task3_Test_Input/ ...`) juga terbaca; bila ada dua folder bernama sama,
+folder yang berisi file gambar langsung yang dipilih. Folder gambar kosong memicu
+peringatan dan tahap analisis gambar dilewati (bukan crash).
 
 ---
 
 ## 1. EDA Tahap 1 — Distribusi Kelas
 
 **Tujuan**: menghitung jumlah, persentase, dan **rasio setiap kelas** (terhadap kelas
-terkecil dan terbesar — bukan hanya kelas minoritas) pada training, test resmi, dan
-validation resmi (193 label).
+terkecil dan terbesar — bukan hanya kelas minoritas) pada dua skenario sekaligus:
+
+- **Skenario A — data sebagai rilis asli**: training / validation resmi (193) / test resmi
+  (1512). Acuan skema competition.
+- **Skenario B — training dipecah** jadi `train + val` (stratified, `val_ratio=0.15`)
+  seperti skema pipeline saat ini; test tetap test resmi.
 
 **Mengapa**: distribusi ISIC 2018 Task 3 sangat timpang — `NV` (~67%) jauh di atas `DF`
 (~1%) dan `VASC` (~1%). Dengan CrossEntropy, kelas mayoritas mendominasi gradien sehingga
 kelas minoritas berisiko tidak terpelajari. Angka ini menjadi masukan langsung untuk
 penentuan bobot loss (`loss_weight_mode: 'inverse_frequency'`) dan `balance_threshold` di
-pipeline.
+pipeline. Kedua skenario disimpan terpisah agar tidak tercampur saat interpretasi.
 
-**Output**: `eda_class_dist.csv`, `eda_class_dist.png`, `eda_class_ratio.csv`.
+**Output**: `eda_class_dist.csv` (skenario A), `eda_class_dist_split.csv` (skenario B),
+`eda_class_dist.png`, `eda_class_ratio.csv`.
 
 ## 2. EDA Tahap 2 — Analisis lesion_id
 
-**Tujuan**: memeriksa asumsi "1 image = 1 lesi independen". Pada HAM10000 sebuah lesi bisa
-difoto lebih dari satu kali sehingga beberapa `image_id` berada di bawah satu `lesion_id`:
+**Tujuan**: memeriksa asumsi "1 image = 1 lesi independen". Sebuah lesi bisa difoto lebih
+dari satu kali sehingga beberapa gambar berada di bawah satu `lesion_id`:
 
 ```
 lesion_id
@@ -39,22 +49,29 @@ lesion_id
    `--- image C
 ```
 
-Dihitung: jumlah image, jumlah *unique* `lesion_id`, dan distribusi **images per lesion**.
+Dihitung: jumlah image, jumlah *unique* `lesion_id`, distribusi **images per lesion**, dan
+cek lesi yang muncul di train-split **dan** val-split pada split stratified per-image.
 
 **Mengapa (data leakage)**: jika `image A -> train` dan `image B -> validation`, model dapat
 mengintip lesi yang sama di dua partition sekaligus → estimasi performa terlalu optimistis.
 Implementasi HAM10000 modern melakukan split berbasis `lesion_id` untuk mencegahnya.
 
-**Keterbatasan data**: ground truth resmi ISIC 2018 tidak menyertakan `lesion_id`. Analisis
-numerik berjalan bila `HAM10000_metadata.csv` tersedia (otomatis dicari di `/kaggle/input`
-dan `dataset/`). Tanpa file itu, notebook tetap menampilkan penjelasan konsep + cara
-melengkapi data.
+**Sumber metadata** (auto-deteksi, berurutan):
+1. `ISIC2018_Task3_Training_LesionGroupings.csv` — rilis resmi Task 3 (**sumber utama**),
+   dicari di `EDA_CFG['lesion_groupings']`, `dataset/`, lalu rekursif `/kaggle/input/**`
+   (menangani path bersarang seperti `/kaggle/input/datasets/<user>/<dataset>/`).
+2. `HAM10000_metadata.csv` — fallback bila file di atas tidak ada.
+3. Tanpa keduanya, notebook tetap menampilkan penjelasan konsep + cara melengkapi data,
+   dan Tahap 7 otomatis melewati skenario 2–4.
+
+**Keterbatasan data**: `LesionGroupings` **hanya mencakup training**. Gambar validation
+resmi (193) dan test resmi (1512) tidak punya `lesion_id`, sehingga lesi lintas
+training↔validation/test tidak bisa disingkirkan sepenuhnya.
 
 **Output**: `eda_lesion_counts.csv` (+ `eda_lesion_split_leak.csv` bila ada lesi lintas split).
 
-**Rekomendasi**: bila metadata tersedia, periksa berapa banyak lesi yang nyangkut di
-train-split dan val-split pada split acak, dan gunakan **split berbasis `lesion_id`**
-(disediakan demo di EDA Tahap 7).
+**Rekomendasi**: gunakan **split berbasis `lesion_id`** (dijumlahkan di EDA Tahap 7), bukan
+split acak per gambar.
 
 ## 3. EDA Tahap 3 — Visualisasi Setiap Kelas
 
@@ -110,21 +127,26 @@ pasangan gambar duplikat dan hitungan duplikat eksak lintas partition.
 
 **Output**: `eda_dup_exact.csv`, `eda_dup_near.csv`.
 
-## 7. EDA Tahap 7 — Ukuran Dataset Setelah Split
+## 7. EDA Tahap 7 — Perbandingan Skenario Split
 
-**Tujuan**: setelah split (sama dengan pipeline utama: stratified `train`/`val` dari training
-set resmi, `test` = test set resmi), lihat jumlah **per kelas** — bukan hanya total:
+**Tujuan**: membandingkan **empat skenario split** (jumlah **per kelas**, bukan hanya total)
+yang menjadi bahan keputusan untuk pipeline utama:
 
-```
-       train  val  test
-akiec    ...   ...   ...
-bcc      ...   ...   ...
-bkl      ...   ...   ...
-df       ...   ...   ...   <- jauh lebih sedikit
-mel      ...   ...   ...
-nv       ...   ...   ...
-vasc     ...   ...   ...   <- jauh lebih sedikit
-```
+| Skenario | Cara split | Lesi bocor | Catatan |
+|---|---|---|---|
+| 1 | stratified per-**image** (`val_ratio=0.15`) | 589 lesi | skema pipeline lama |
+| 2 | stratified per-**lesion** (`val_ratio=0.15`) | 0 | holdout murni |
+| 3 | **k-fold** grouped per-lesion (`k_folds`) | 0 | tiap gambar validasi tepat 1× → default pipeline |
+| 4 | **holdout**: split `val_ratio` + **validation resmi** | tidak terverifikasi | `split_scheme="holdout"`; 193 gambar val resmi tanpa `lesion_id` |
+
+Skenario 3 memakai `StratifiedGroupKFold(shuffle=True, random_state=42)` (fallback
+`GroupKFold` bila tidak tersedia) dan melaporkan jumlah gambar per kelas di tiap fold
+(min..max) untuk mengecek keseimbangan. Skenario 4 memakai split per-lesi yang sama dengan
+Skenario 2, lalu menggabungkan 193 gambar validation resmi ke validation set.
+
+Skenario 3 dan 4 adalah **dua skema split yang dipilih lewat `CONFIG['split_scheme']` di
+pipeline**, bukan dua tahap berurutan. Keduanya tidak pernah memakai 193 gambar validation
+resmi untuk training.
 
 **Mengapa**: `DF` dan `VASC` yang sangat sedikit memengaruhi:
 - **class weight** (bobot CrossEntropy — pipeline memakai `inverse_frequency`),
@@ -133,18 +155,31 @@ vasc     ...   ...   ...   <- jauh lebih sedikit
 - **interpretasi F1** (accuracy boleh tinggi meski F1 per kelas rendah),
 - **reliabilitas metrik per kelas** (n kecil → interval kepercayaan lebar).
 
-Bila `HAM10000_metadata` tersedia, bagian kedua membandingkan **split biasa vs split berbasis
-`lesion_id`** (anti-leakage) dengan cek overlap antar partition (harusnya 0).
+Skema evaluasi akhir:
 
-**Output**: `eda_split_counts.csv`, `eda_split_counts.png`.
+- `split_scheme="kfold"` (default) → training di-split k-fold grouped per-lesi; validation
+  resmi (193) = **public test** (tidak dilatih, tidak dipisah lagi); test resmi (1.512) =
+  **private test**. Skema competition ISIC 2018.
+- `split_scheme="holdout"` → training di-split sekali `val_ratio`, digabung dengan validation
+  resmi (193) menjadi validation set; test resmi = **private test**. Tidak ada public test,
+  karena 193 gambar sudah masuk validation sehingga angkanya tidak independen dari training.
+- **Tidak ada** opsi menggabungkan 193 gambar ke training (`combine_train_val`): file
+  `LesionGroupings` tidak memuat `lesion_id` untuk partition tersebut, sehingga lesi silang
+  tidak bisa disingkirkan. Flag tersebut hanya dokumentasi di EDA (default `False`) dan
+  tidak memengaruhi pipeline.
+
+**Output**: `eda_split_counts.csv`, `eda_split_counts.png`, `eda_split_lesion_counts.csv`,
+`eda_split_leak_summary.csv`, `eda_split_holdout_counts.csv`, `eda_split_compare.png`,
+`eda_cv_folds.csv`.
 
 ---
 
 ## Hasil EDA ISIC 2018 Task 3 (snapshot)
 
 Snapshot hasil eksekusi notebook EDA (konfigurasi: `sample_size=300`,
-`color_sample_size=200`, `val_ratio=0.15`, `random_state=42`). `HAM10000_metadata.csv`
-tidak tersedia sehingga tahap 2 (analisis `lesion_id`) hanya berisi penjelasan konsep.
+`color_sample_size=200`, `val_ratio=0.15`, `k_folds=5`, `random_state=42`,
+`combine_train_val=False`). Sumber `lesion_id`:
+`ISIC2018_Task3_Training_LesionGroupings.csv` (rilis resmi).
 
 ### Ukuran dataset
 
@@ -239,13 +274,75 @@ Metrik per kelas untuk DF/VASC punya variabilitas tinggi & CI lebar; interpretas
 hati-hati. Distribusi proporsi train/val konsisten (stratified) — pembanding eksperimen fair
 — dan test resmi sedikit berbeda (minoritas relatif lebih besar).
 
+### Tahap 2 — Struktur `lesion_id` (LesionGroupings)
+
+| metrik | nilai |
+|---|---:|
+| gambar training | 10.015 |
+| lesi unik | 7.470 |
+| lesi dengan >1 gambar | 1.956 |
+| gambar dari lesi multi-gambar | 4.501 |
+| maksimum gambar per lesi | 6 |
+| lesi dengan label konflik | 0 |
+
+Distribusi gambar per lesi: 1→5.514, 2→1.423, 3→490, 4→34, 5→5, 6→4.
+
+**Bukti leakage pada split per-image sekarang** (stratified 15%, `random_state=42`):
+
+| skenario | lesi bocor | gambar terlibat | % gambar training |
+|---|---:|---:|---:|
+| 1. split per-image (skema lama) | **589** | **1.420** | 14,2% |
+| 2. split per-lesion | 0 | 0 | 0,0% |
+
+Rincian lesi bocor: 370 lesi (2 gambar), 198 (3), 19 (4), 2 (5).
+
+### Tahap 7 — Perbandingan skenario split
+
+**Skenario 2 — per-lesion holdout** (6.349 lesi train / 1.121 lesi val, overlap 0):
+
+| class | train | val | class | train | val |
+|---|---:|---:|---|---:|---:|
+| MEL   |  945 | 168 | BKL   |  942 | 157 |
+| NV    | 5705 |1000 | DF    |   93 |  22 |
+| BCC   |  437 |  77 | VASC  |  120 |  22 |
+| AKIEC |  276 |  51 | | | |
+
+**Skenario 3 — k-fold=5 grouped per-lesion (training saja, 10.015 gambar)**:
+
+| fold | n_train | n_val | n_lesion_val | MEL | NV | BCC | AKIEC | BKL | DF | VASC |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 8011 | 2004 | 1495 | 222 | 1341 | 103 | 66 | 220 | 23 | 29 |
+| 1 | 8012 | 2003 | 1494 | 222 | 1341 | 103 | 66 | 220 | 23 | 28 |
+| 2 | 8012 | 2003 | 1494 | 223 | 1341 | 102 | 65 | 220 | 23 | 29 |
+| 3 | 8012 | 2003 | 1494 | 223 | 1341 | 103 | 65 | 220 | 23 | 28 |
+| 4 | 8013 | 2002 | 1493 | 223 | 1341 | 103 | 65 | 219 | 23 | 28 |
+
+**Skenario 4 — holdout: split `val_ratio` + validation resmi** (skema `split_scheme="holdout"`):
+
+| partisi | gambar | lesi |
+|---|---:|---:|
+| train (split 85% per-lesi) | 8.518 | 6.349 |
+| val = split 15% per-lesi | 1.497 | 1.121 |
+| val = validation resmi | 193 | tidak diketahui (`lesion_id` tidak tersedia) |
+| **val total** | **1.690** | — |
+| test resmi (private test) | 1.512 | — |
+
+Overlap lesi train vs val-split = 0. Tidak ada public test: 193 gambar sudah menjadi bagian
+validation set. Risiko yang tersisa: lesi silang antara training dan 193 gambar validation
+resmi **tidak bisa disingkirkan** karena `lesion_id`-nya tidak ada.
+
+**Rekomendasi**: pakai **k-fold grouped per-lesion** sebagai skema utama
+(`CONFIG['split_scheme'] = "kfold"`), sehingga 193 gambar validation resmi menjadi
+**public test** dan tidak pernah dilatih. Gunakan `"holdout"` hanya bila ingin satu split besar
++ 193 gambar di validation untuk iterasi cepat.
+
 ---
 
 ## Ringkasan
 
 Setiap tahap menutup dengan angka dan observasi yang mengarah ke keputusan pipeline, antara
-lain: penggunaan bobot loss / balancing (Tahap 1 & 7), split berbasis lesion bila perlu
-(Tahap 2), pemilihan augmentasi warna yang tidak merusak distribusi asli (Tahap 5),
-keputusan resize 224×224 (Tahap 4), dan ekslusi duplikat dari split (Tahap 6).
+lain: penggunaan bobot loss / balancing (Tahap 1 & 7), **split berbasis `lesion_id` dan
+k-fold grouped** (Tahap 2 & 7), pemilihan augmentasi warna yang tidak merusak distribusi asli
+(Tahap 5), keputusan resize 224×224 (Tahap 4), dan ekslusi duplikat dari split (Tahap 6).
 `docs/pipeline.md` menjelaskan bagaimana keputusan ini diimplementasikan di pipeline
 training (`kaggle/isic2018_resnet_pipeline.ipynb`).

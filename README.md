@@ -4,8 +4,9 @@ Pipeline pelatihan & evaluasi model **ResNet** untuk klasifikasi **7 kelas diagn
 kulit** (MEL, NV, BCC, AKIEC, BKL, DF, VASC) pada **ISIC 2018 Task 3** dengan PyTorch.
 
 Notebook: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet_pipeline.ipynb)
-(berbahasa Indonesia, siap dijalankan lokal maupun di Kaggle). Script sumber:
-`src/isic2018_resnet_pipeline.py`. Pendamping analisis data awal:
+(berbahasa Indonesia, siap dijalankan lokal maupun di Kaggle) adalah sumber kebenaran alur
+training; `src/isic2018_resnet_pipeline.py` adalah script versi lama (referensi).
+Pendamping analisis data awal:
 [`kaggle/isic2018_eda.ipynb`](kaggle/isic2018_eda.ipynb) (7 tahap EDA, lihat
 [`docs/eda.md`](docs/eda.md)).
 
@@ -13,19 +14,43 @@ Notebook: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet_pipel
 
 - **Config-first** — semua hyperparameter (path, kelas, split, balancing, normalisasi,
   training, arsitektur) ada di satu blok `CONFIG` (Section 1).
+- **Dua skema split anti-leakage per-lesion (`CONFIG['split_scheme']`)** — karena
+  10.015 gambar training hanya berisi **7.470 lesi** (1.956 lesi multi-gambar), split
+  per-gambar membocorkan lesi ke train & validation. Pilihan:
+  - **`"kfold"` (default, `k_folds=5`)** — `StratifiedGroupKFold` grouped per-lesion pada
+    training saja. 193 gambar **validation resmi tidak pernah dilatih** dan diperlakukan
+    sebagai **public test**; 1.512 gambar **test resmi = private test**. Menghasilkan
+    `k_folds` model (`<experiment_name>_f0`…`_f<k-1>`) + `kfold_summary_*.csv`.
+  - **`"holdout"` (`val_ratio=0.15`)** — training di-split sekali per-lesi lalu
+    **dimasukkan ke validation bersama 193 gambar validation resmi**; test resmi tetap
+    private test. Tidak ada public test independen. Menghasilkan 1 model.
+  - Keduanya grouped per-lesi memakai `lesion_id` dari
+    `ISIC2018_Task3_Training_LesionGroupings.csv` (ditemukan otomatis di `dataset/` atau
+    rekursif `/kaggle/input/**`, termasuk layout bersarang
+    `/kaggle/input/datasets/<user>/<dataset>/ISIC2018_Task3_Training_Input/...`): kfold
+    pakai `StratifiedGroupKFold`/`GroupKFold`, holdout pakai `train_test_split`
+    stratified per-lesi.
+    Ringkasan + cek overlap lesi → `split_summary.csv`.
+  - **193 gambar validation resmi tidak punya `lesion_id`, jadi tidak pernah dipakai
+    training** (opsi gabung ke training sengaja tidak disediakan).
 - **Model ResNet configurable** — depth (18/34/50/101), jenis residual block
   (`basic`/`bottleneck`), base channels, classifier hidden dim. Bobot pretrained ImageNet
   dipakai otomatis untuk kombinasi arsitektur standar; kombinasi lain dibangun dari nol.
-- **Pencatatan run lengkap** — setiap run menyimpan skema training-test-eval + seluruh
+- **Pencatatan run lengkap** — setiap run (per fold) menyimpan blok `scheme` (skema split,
+  fold, komposisi train/validation/public/private test) + seluruh
   hyperparameter + arsitektur ke `run_<nama>.json` dan baris ringkas di `runs_log.csv`.
+  Kolom `split_scheme` & `fold` ditambahkan ke `runs_log.csv`.
 - **Ringkasan arsitektur ala Keras** — `model_summary` menampilkan tabel per layer (nama, tipe,
   output shape, kuota parameter, parameter trainable) — memakai `torchinfo` bila tersedia,
   fallback ke helper kustom tanpa dependency; tabel tersimpan ke
   `output/arch_summary_<experiment_name>.csv`.
-  - **Eksperimen = 1 model (bukan ablation)** — hanya ada satu cell training (Section 14).
-  Untuk eksperimen, ubah nilai hyperparameter langsung di `CONFIG`, ganti `experiment_name`
-  di CONFIG (nama run/output), lalu jalankan ulang cell yang sama. Satu eksperimen menghasilkan
-  satu model/run; perbandingan dibaca dari `runs_log.csv`.
+  - **Eksperimen = 1 model per fold (bukan ablation)** — hanya ada satu cell training
+  (Section 14) yang looping semua split job. Untuk eksperimen, ubah nilai hyperparameter
+  langsung di `CONFIG`, ganti `experiment_name` di CONFIG (nama run/output), lalu jalankan
+  ulang cell yang sama. Satu eksperimen menghasilkan satu model per fold; perbandingan
+  dibaca dari `runs_log.csv`.
+- **Model k-fold ditahan di Section 14** — model, history, dan run record tiap fold
+  disimpan di `RUN_RESULTS` (selama sesi kernel yang sama) untuk dipakai Section 18–19.
 - **Bobot loss otomatis** — `loss_weight_mode: 'inverse_frequency'` menghitung bobot
   CrossEntropy (ekivalen `class_weight='balanced'` sklearn) dari distribusi training
   **setelah** balancing; atau isi `loss_weight` manual per kelas. Bobot efektif tercatat di
@@ -49,21 +74,25 @@ Notebook: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet_pipel
   `early_stopping_patience` (default `10`) epoch tanpa perbaikan (`early_stopping_min_delta`).
   Kurva learning rate, `epochs_ran`, `best_epoch`, dan `stopped_early` dicatat di history,
   `run_<nama>.json`, `runs_log.csv`, dan di-plot.
-- **Evaluasi menyeluruh** — training/validation split stratified, plus evaluasi di
-  **test set resmi** dan **validation set resmi** (193 label). Setiap evaluasi menyimpan
+- **Evaluasi menyeluruh** — validation split selalu grouped per-lesion, plus evaluasi
+  **private test** (test resmi, 1.512 label) untuk setiap model/fold dan **public test**
+  (validation resmi, 193 label — hanya pada skema k-fold). Setiap evaluasi menyimpan
   metrik & classification report CSV, confusion matrix PNG, prediksi per gambar CSV, dan
-  **sampel salah klasifikasi** (CSV + grid gambar).
+  **sampel salah klasifikasi** (CSV + grid gambar); rata-rata antar fold disimpan di
+  `test_private_metrics_all.csv` dan `test_public_metrics_all.csv`.
 - **Kaggle-ready** — autodetect `/kaggle/input`; semua output tersimpan ke `output/`.
 - **EDA bawaan** — distribusi kelas + statistik deskriptif gambar untuk laporan metodologi.
 - **Notebook EDA pendamping** — `kaggle/isic2018_eda.ipynb`: 7 tahap EDA
   (distribusi kelas, analisis `lesion_id` & risiko leakage, visualisasi per kelas, resolusi &
   aspect ratio, distribusi warna + sanity-check ColorJitter, duplikat/near-duplikat, dan
-  ukuran split per kelas). Analisis read-only, artefak ke `output_eda/` (lihat `docs/eda.md`).
+  perbandingan 4 skenario split per kelas). Sumber `lesion_id`:
+  `ISIC2018_Task3_Training_LesionGroupings.csv` (fallback `HAM10000_metadata.csv`).
+  Analisis read-only, artefak ke `output_eda/` (lihat `docs/eda.md`).
 
 ## Isi Repo
 
 ```
-├── src/isic2018_resnet_pipeline.py  # script sumber pipeline
+├── src/isic2018_resnet_pipeline.py  # script versi lama (referensi)
 ├── kaggle/isic2018_resnet_pipeline.ipynb   # notebook utama
 ├── kaggle/isic2018_eda.ipynb        # notebook EDA (7 tahap)
 ├── docs/pipeline.md                 # dokumentasi alur pipeline
@@ -76,14 +105,22 @@ Notebook: [`kaggle/isic2018_resnet_pipeline.ipynb`](kaggle/isic2018_resnet_pipel
 
 ## Cara Menjalankan
 
-1. **Lokal**: `python src/isic2018_resnet_pipeline.py` (perlu PyTorch + torchvision).
-2. **Pipeline**: buka `kaggle/isic2018_resnet_pipeline.ipynb`, jalankan cell 1–19 berurutan.
+1. **Pipeline**: buka `kaggle/isic2018_resnet_pipeline.ipynb`, jalankan Section 1–19
+   berurutan. Section 6 mencetak skema split yang dipakai; Section 14 melatih semua fold.
+2. **Skema split**: set `CONFIG['split_scheme']` = `"kfold"` (default) atau `"holdout"`
+   di Section 1. `k_folds` hanya dipakai pada `"kfold"`; `val_ratio` hanya dipakai pada
+   `"holdout"`.
 3. **EDA (opsional)**: buka `kaggle/isic2018_eda.ipynb`, jalankan cell berurutan; hasil ke
-   `output_eda/`. Analysis `lesion_id` aktif bila `HAM10000_metadata.csv` ada di `dataset/`
-   atau ditemukan di `/kaggle/input`.
+   `output_eda/`. Analisis `lesion_id` aktif bila
+   `ISIC2018_Task3_Training_LesionGroupings.csv` ada di `dataset/` atau ditemukan di
+   `/kaggle/input`.
 4. **Kaggle**: upload dataset berisi folder standar ISIC 2018 Task 3
-   (`ISIC2018_Task3_Training_Input`, `..._Test_Input`, `..._Validation_Input`, dan folder
-   `*_GroundTruth`). Path terdeteksi otomatis.
+   (`ISIC2018_Task3_Training_Input`, `..._Test_Input`, `..._Validation_Input`, folder
+   `*_GroundTruth`, dan `ISIC2018_Task3_Training_LesionGroupings.csv`). Path terdeteksi
+   otomatis — baik layout datar maupun bersarang
+   (`/kaggle/input/datasets/<user>/<dataset>/ISIC2018_Task3_Training_Input/...`).
+5. **Script (opsional)**: `src/isic2018_resnet_pipeline.py` — versi lama, belum mendukung
+   `split_scheme`.
 
 ## Kebutuhan
 
